@@ -192,6 +192,7 @@ def run_amendment_logic(find_word, replace_word):
             조가지번호 = article.findtext("조문가지번호", "").strip()
             조문식별자 = make_article_number(조번호, 조가지번호)
             조문내용 = article.findtext("조문내용", "") or ""
+
             if find_word in 조문내용:
                 덩어리별[find_word].append((조문식별자, None, None, None, None))
 
@@ -221,57 +222,102 @@ def run_amendment_logic(find_word, replace_word):
             각각 = "각각 " if len(locs) > 1 else ""
             loc_str = ", ".join([format_location(l) for l in locs[:-1]]) + (" 및 " if len(locs) > 1 else "") + format_location(locs[-1])
 
-            조사_출력 = apply_josa_rule(find_word, replace_word)
-            문장들.append(f'{loc_str} 중 “{find_word}”{각각}“{replace_word}”{조사_출력} 한다.')
+            조사형식 = apply_josa_rule(find_word, replace_word)
+            문장들.append(f'{loc_str} 중 “{find_word}”{조사형식} 한다.')
 
         prefix = chr(9312 + idx) if idx < 20 else str(idx + 1)
         amendment_results.append(f"{prefix} {law_name} 일부를 다음과 같이 개정한다.<br>" + "<br>".join(문장들))
 
     return amendment_results if amendment_results else ["⚠️ 개정 대상 조문이 없습니다."]
 
-def apply_josa_rule(find_word, replace_word):
-    # 조사 후보 - 긴 것부터
-    josa_candidates = ["으로", "이나", "이나", "로", "을", "를", "과", "와", "이", "가", "나"]
-    found_josa = ""
-    for josa in josa_candidates:
-        if find_word.endswith(josa):
-            found_josa = josa
-            break
 
+def apply_josa_rule(find_word, replace_word):
+    # 조사 후보
+    josa_list = ["으로", "이나", "나", "로", "을", "를", "과", "와", "이", "가"]
+    found_josa = next((josa for josa in josa_list if find_word.endswith(josa)), "")
     word_root = find_word[:-len(found_josa)] if found_josa else find_word
 
-    def has_final_consonant(word):
-        code = ord(word[-1])
-        return (code - 0xAC00) % 28 != 0
+    def has_batchim(word):
+        return (ord(word[-1]) - 0xAC00) % 28 != 0
 
-    def has_final_rieul(word):
-        code = ord(word[-1])
-        return (code - 0xAC00) % 28 == 8
+    def has_rieul(word):
+        return (ord(word[-1]) - 0xAC00) % 28 == 8
 
-    has_batchim = has_final_consonant(replace_word)
-    has_rieul = has_final_rieul(replace_word)
+    has_b = has_batchim(replace_word)
+    has_r = has_rieul(replace_word)
 
-    # 규칙 적용
+    # 규칙에 따른 출력
     if found_josa == "을":
-        return "로" if has_rieul else "으로" if has_batchim else "를"
+        if has_b:
+            if has_r:
+                return f'를 {replace_word}로'
+            else:
+                return f'를 {replace_word}으로'
+        else:
+            return f'을 {replace_word}를'
+
     elif found_josa == "를":
-        return "을" if has_batchim else "로"
+        if has_b:
+            return f'를 {replace_word}을'
+        else:
+            return f'를 {replace_word}를'
+
     elif found_josa == "과":
-        return "과" if has_batchim else "와"
+        if has_b:
+            if has_r:
+                return f'과 {replace_word}로'
+            else:
+                return f'과 {replace_word}으로'
+        else:
+            return f'과 {replace_word}와'
+
     elif found_josa == "와":
-        return "과" if has_batchim else "로"
+        if has_b:
+            return f'와 {replace_word}과'
+        else:
+            return f'와 {replace_word}를'
+
     elif found_josa == "이":
-        return "로" if has_rieul else "으로" if has_batchim else "가"
+        if has_b:
+            if has_r:
+                return f'이 {replace_word}로'
+            else:
+                return f'이 {replace_word}으로'
+        else:
+            return f'이 {replace_word}가'
+
     elif found_josa == "가":
-        return "가" if has_batchim else "로"
+        if has_b:
+            return f'가 {replace_word}이'
+        else:
+            return f'가 {replace_word}를'
+
     elif found_josa == "이나":
-        return "로" if has_rieul else "으로" if has_batchim else "나"
+        if has_b:
+            if has_r:
+                return f'이나 {replace_word}로'
+            else:
+                return f'이나 {replace_word}으로'
+        else:
+            return f'이나 {replace_word}나'
+
     elif found_josa == "나":
-        return "이나" if has_batchim else "로"
+        if has_b:
+            return f'나 {replace_word}이나'
+        else:
+            return f'나 {replace_word}를'
+
     elif found_josa == "으로":
-        return "로" if has_rieul or not has_batchim else "으로"
+        if has_r or not has_b:
+            return f'으로 {replace_word}로'
+        else:
+            return f'으로 {replace_word}으로'
+
     elif found_josa == "로":
-        return "로" if not has_batchim else "으로" if not has_rieul else "로"
+        if has_b and not has_r:
+            return f'로 {replace_word}으로'
+        else:
+            return f'로 {replace_word}로'
+
     else:
-        # 기본 처리
-        return "으로" if has_batchim else "로"
+        return f'를 {replace_word}로'
