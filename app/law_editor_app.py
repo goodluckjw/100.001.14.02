@@ -4,7 +4,7 @@ import importlib.util
 
 st.set_page_config(layout="wide")
 
-st.markdown("<h1 style='font-size:20px;'>📘 부칙개정 도우미 (100.001.14.01)</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='font-size:20px;'>📘 부칙개정 도우미 (100.001.14.02)</h1>", unsafe_allow_html=True)
 
 base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "app"))
 processor_path = os.path.join(base_dir, "law_processor.py")
